@@ -1,30 +1,46 @@
-# 🚀 MERN Stack Hackathon Authentication Template
+# 🚀 MERN Stack Hackathon Authentication Foundation
 
-A clean, modular, and reusable authentication module (Frontend + Backend) designed for fast integration into any MERN stack hackathon project.
+A robust, production-ready, modular authentication foundation built with **Node.js, Express, MongoDB (Mongoose), JWT, Brevo Transactional Email (OTP Verification), React 19, and Vite**.
+
+Designed specifically as a reliable, drop-in authentication module for fast-paced hackathons and full-stack projects.
 
 ---
 
-## 📂 Project Architecture
+## 📑 Table of Contents
+- [Architecture Overview](#-architecture-overview)
+- [Key Features](#-key-features)
+- [Authentication & OTP Flow](#-authentication--otp-flow)
+- [API Endpoints Specification](#-api-endpoints-specification)
+- [Environment Variables](#-environment-variables)
+- [Getting Started](#-getting-started)
+- [Verification & Testing Checklist](#-verification--testing-checklist)
+- [Hackathon Integration Guide](#-hackathon-integration-guide)
 
-```
+---
+
+## 📂 Architecture Overview
+
+```text
 login-register-signup/
 ├── backend/
 │   ├── src/
 │   │   ├── config/
 │   │   │   └── db.js              # MongoDB Mongoose connection utility
 │   │   ├── controllers/
-│   │   │   └── authController.js  # Register, Login, & GetMe handlers
+│   │   │   └── authController.js  # Register, Verify-OTP, Resend-OTP, Login, Logout, & GetMe
 │   │   ├── middleware/
-│   │   │   └── authMiddleware.js  # JWT Bearer token authentication guard
+│   │   │   └── authMiddleware.js  # JWT Bearer guard with email verification check
 │   │   ├── models/
-│   │   │   └── User.js            # Mongoose User schema with bcrypt pre-save hashing
+│   │   │   └── User.js            # Mongoose User schema with bcrypt & hashed OTP methods
 │   │   ├── routes/
 │   │   │   └── authRoutes.js      # Express auth routes
+│   │   ├── services/
+│   │   │   └── emailService.js    # Brevo Transactional Email REST API service
 │   │   ├── utils/
 │   │   │   └── generateToken.js   # JWT signing helper
 │   │   └── server.js              # Express app entry point
 │   ├── .env.example               # Backend environment variables template
-│   ├── .env                       # Local environment configuration
+│   ├── .env                       # Local backend environment configuration
 │   └── package.json
 │
 └── frontend/
@@ -32,19 +48,20 @@ login-register-signup/
     │   ├── api/
     │   │   └── axios.js           # Axios instance with auth interceptors
     │   ├── components/
-    │   │   ├── Alert.jsx          # Reusable error & success notifications
-    │   │   ├── Button.jsx         # Reusable button with spinner loading state
-    │   │   └── InputField.jsx     # Reusable input with validation & show/hide password
+    │   │   ├── Alert.jsx          # Reusable error & success notification banners
+    │   │   ├── Button.jsx         # Accessible button with spinner loading state
+    │   │   └── InputField.jsx     # Reusable input with validation & show/hide toggle
     │   ├── context/
     │   │   └── AuthContext.jsx    # React Context with user state & auth methods
     │   ├── pages/
-    │   │   ├── Dashboard.jsx      # Protected page showing authenticated user
-    │   │   ├── Login.jsx          # Login page with client validation
-    │   │   └── Register.jsx       # Register page with password confirmation
+    │   │   ├── Dashboard.jsx      # Protected dashboard displaying verified credentials
+    │   │   ├── Login.jsx          # Login page with unverified email recovery link
+    │   │   ├── Register.jsx       # Register page redirecting to OTP verification
+    │   │   └── VerifyOtp.jsx      # Interactive 6-digit OTP verification screen
     │   ├── routes/
     │   │   └── ProtectedRoute.jsx # Route guard for private pages
     │   ├── App.jsx                # React Router setup
-    │   ├── index.css              # Modern responsive CSS design system
+    │   ├── index.css              # Responsive CSS design system with OTP styling
     │   └── main.jsx
     ├── .env.example               # Frontend environment variables template
     ├── .env                       # Local frontend configuration
@@ -54,52 +71,59 @@ login-register-signup/
 
 ---
 
-## 📦 Required NPM Packages
+## ✨ Key Features
 
-### Backend Dependencies (`backend/package.json`)
-| Package | Version | Purpose |
-| :--- | :--- | :--- |
-| `express` | `^4.19.2` | Fast, lightweight web framework for Node.js |
-| `mongoose` | `^8.5.0` | MongoDB object modeling and schema validation |
-| `bcryptjs` | `^2.4.3` | Pure JS password hashing (no native build issues) |
-| `jsonwebtoken` | `^9.0.2` | Secure JWT token signing and verification |
-| `cors` | `^2.8.5` | Cross-Origin Resource Sharing middleware |
-| `dotenv` | `^16.4.5` | Loads environment variables from `.env` file |
-| `nodemon` *(dev)* | `^3.1.4` | Automatically restarts Node server on file changes |
-
-### Frontend Dependencies (`frontend/package.json`)
-| Package | Version | Purpose |
-| :--- | :--- | :--- |
-| `react` | `^19.0.0` | React UI library |
-| `react-dom` | `^19.0.0` | React DOM bindings |
-| `react-router-dom`| `^7.x` | Declarative client-side routing |
-| `axios` | `^1.7.x` | Promise-based HTTP client for API requests |
-| `lucide-react` | `^1.16.0` | Lightweight modern icons for forms and buttons |
+1. **MongoDB Atlas Integration**: Auto-connects on startup with sanitized connection logging.
+2. **Brevo Email OTP Verification**: Sends clean branded HTML/plain-text transactional verification emails with 6-digit OTPs.
+3. **Secure OTP Lifecycle**:
+   - OTP is hashed using SHA-256 before storage in MongoDB.
+   - Configurable expiration (default 10 minutes via `OTP_EXPIRY_MINUTES`).
+   - 30-second rate-limiting cooldown preventing excessive resend requests.
+   - OTP is invalidated and erased upon successful verification.
+4. **Guarded Login & Protected Routes**:
+   - Accounts require verified email before login.
+   - Attempts to log in with unverified emails return informative alerts with a 1-click link to verify.
+   - Protected API routes verify both JWT signature and `isEmailVerified === true`.
+5. **Interactive UI**:
+   - Auto-advancing 6-digit numeric input boxes with backspace and clipboard paste support.
+   - Real-time countdown timer for OTP resend cooldown.
+   - Verified user badge and account metadata on the Dashboard.
 
 ---
 
-## ⚙️ Environment Variables
+## 🔄 Authentication & OTP Flow
 
-### Backend (`backend/.env`)
-```env
-# Server Port
-PORT=5000
+```text
+Registration Flow:
+User enters Name, Email, Password
+            ↓
+Client-side form validation
+            ↓
+POST /api/auth/register
+            ↓
+Backend checks if email exists:
+  - If verified → 400 'Email already registered'
+  - If unverified → Updates user, resets OTP & cooldown, dispatches email
+  - If new user → Creates user (isEmailVerified: false), dispatches email
+            ↓
+Brevo sends 6-digit OTP email
+            ↓
+User redirected to /verify-otp
 
-# Allowed Frontend Client URL (for CORS)
-CLIENT_URL=http://localhost:5173
-
-# MongoDB Connection String (Connect when ready)
-MONGO_URI=mongodb://localhost:27017/hackathon_auth_db
-
-# JWT Secret and Expiration
-JWT_SECRET=super_secret_hackathon_jwt_key_2026
-JWT_EXPIRES_IN=7d
-```
-
-### Frontend (`frontend/.env`)
-```env
-# Backend API Base URL
-VITE_API_BASE_URL=http://localhost:5000/api
+Verification Flow:
+User enters 6 digits on /verify-otp
+            ↓
+POST /api/auth/verify-otp { email, otp }
+            ↓
+Backend checks:
+  - User exists?
+  - OTP not expired?
+  - Hashed OTP matches?
+  - isEmailVerified not already true?
+            ↓
+Sets isEmailVerified = true, clears OTP
+            ↓
+Issues JWT token & logs user in → Redirects to Dashboard /
 ```
 
 ---
@@ -108,40 +132,88 @@ VITE_API_BASE_URL=http://localhost:5000/api
 
 ### 1. Register User
 - **Method & Path:** `POST /api/auth/register`
-- **Access:** Public
-- **Headers:** `Content-Type: application/json`
 - **Request Body:**
   ```json
   {
-    "name": "Alex Rivera",
-    "email": "alex@example.com",
-    "password": "password123"
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "password": "securepassword123"
   }
   ```
-- **Success Response (201 Created):**
+- **Response (201 Created):**
   ```json
   {
     "success": true,
-    "message": "User registered successfully",
+    "message": "Account created! Please enter the verification code sent to your email.",
+    "email": "jane@example.com"
+  }
+  ```
+
+### 2. Verify OTP
+- **Method & Path:** `POST /api/auth/verify-otp`
+- **Request Body:**
+  ```json
+  {
+    "email": "jane@example.com",
+    "otp": "123456"
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "message": "Email verified successfully!",
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "user": {
       "id": "664b4c73...",
-      "name": "Alex Rivera",
-      "email": "alex@example.com",
-      "createdAt": "2026-09-17T10:19:00.000Z"
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "isEmailVerified": true,
+      "createdAt": "2026-09-18T12:00:00.000Z"
     }
   }
   ```
 
-### 2. Login User
-- **Method & Path:** `POST /api/auth/login`
-- **Access:** Public
-- **Headers:** `Content-Type: application/json`
+### 3. Resend OTP
+- **Method & Path:** `POST /api/auth/resend-otp`
 - **Request Body:**
   ```json
   {
-    "email": "alex@example.com",
-    "password": "password123"
+    "email": "jane@example.com"
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "message": "A new verification code has been sent to your email."
+  }
+  ```
+- **Rate Limit Response (429 Too Many Requests):**
+  ```json
+  {
+    "success": false,
+    "message": "Resend available in 25 seconds",
+    "remainingSeconds": 25
+  }
+  ```
+
+### 4. Login User
+- **Method & Path:** `POST /api/auth/login`
+- **Request Body:**
+  ```json
+  {
+    "email": "jane@example.com",
+    "password": "securepassword123"
+  }
+  ```
+- **Unverified Account Response (403 Forbidden):**
+  ```json
+  {
+    "success": false,
+    "message": "Please verify your email before logging in.",
+    "isEmailVerified": false,
+    "email": "jane@example.com"
   }
   ```
 - **Success Response (200 OK):**
@@ -152,102 +224,106 @@ VITE_API_BASE_URL=http://localhost:5000/api
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "user": {
       "id": "664b4c73...",
-      "name": "Alex Rivera",
-      "email": "alex@example.com",
-      "createdAt": "2026-09-17T10:19:00.000Z"
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "isEmailVerified": true,
+      "createdAt": "2026-09-18T12:00:00.000Z"
     }
   }
   ```
 
-### 3. Get Current Authenticated User
-- **Method & Path:** `GET /api/auth/me`
-- **Access:** Private (Requires JWT Token)
-- **Headers:**
-  ```http
-  Authorization: Bearer <your_jwt_token>
+### 5. Logout User
+- **Method & Path:** `POST /api/auth/logout`
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "message": "Logged out successfully"
+  }
   ```
-- **Success Response (200 OK):**
+
+### 6. Get Current User Profile
+- **Method & Path:** `GET /api/auth/me`
+- **Headers:** `Authorization: Bearer <jwt_token>`
+- **Response (200 OK):**
   ```json
   {
     "success": true,
     "user": {
       "id": "664b4c73...",
-      "name": "Alex Rivera",
-      "email": "alex@example.com",
-      "createdAt": "2026-09-17T10:19:00.000Z"
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "isEmailVerified": true,
+      "createdAt": "2026-09-18T12:00:00.000Z"
     }
   }
   ```
 
-### 4. Health Check
+### 7. Health Check
 - **Method & Path:** `GET /api/health`
-- **Access:** Public
 - **Response (200 OK):**
   ```json
   {
     "status": "online",
-    "timestamp": "2026-09-17T10:25:00.000Z",
+    "timestamp": "2026-09-18T12:00:00.000Z",
+    "databaseConnected": true,
     "message": "MERN Auth API is running smoothly"
   }
   ```
 
 ---
 
-## 🛠️ Step-by-Step Setup Instructions
+## ⚙️ Environment Variables
 
-### Step 1: Run the Backend
+### Backend (`backend/.env`)
+```env
+PORT=5000
+CLIENT_URL=http://localhost:5173
+FRONTEND_URL=http://localhost:5173
+
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.example.net/dbname
+
+JWT_SECRET=your_super_secret_jwt_key
+JWT_EXPIRES_IN=7d
+
+# Brevo Email Configuration
+BREVO_API_KEY=xkeysib-your_brevo_api_key_here
+BREVO_SENDER_EMAIL=your-verified-sender@example.com
+BREVO_SENDER_NAME=MERN Auth
+
+OTP_EXPIRY_MINUTES=10
+```
+
+### Frontend (`frontend/.env`)
+```env
+VITE_API_BASE_URL=http://localhost:5000/api
+```
+
+---
+
+## 🚀 Getting Started
+
+### 1. Start Backend Server
 ```bash
 cd backend
 npm install
 npm run dev
 ```
-> The backend will start on **`http://localhost:5000`**.
+Backend will start on: **`http://localhost:5000`**
 
-### Step 2: Run the Frontend
-In a new terminal window:
+### 2. Start Frontend App
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-> Open your browser at **`http://localhost:5173`**.
+Frontend will be available at: **`http://localhost:5173`**
 
 ---
 
-## 🔌 Connecting to MongoDB (When Ready)
-
-Per your instructions, the database is **not connected by default** so you can run, test, and copy this template immediately without running a MongoDB instance.
-
-When you are ready to connect to a real MongoDB database:
-1. Open `backend/.env` and set your MongoDB connection string:
-   ```env
-   MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/my_app?retryWrites=true&w=majority
-   ```
-2. Open `backend/src/server.js` and uncomment line 32:
-   ```javascript
-   // Change from:
-   // connectDB();
-
-   // To:
-   connectDB();
-   ```
-3. Restart the backend server. The Mongoose `User` model will now persist users directly to your database!
-
----
-
-## 📋 Copying into Another Hackathon Project
-
-To use this module in an existing MERN hackathon repository:
-1. **Backend:**
-   - Copy `backend/src/models/User.js` into your backend models folder.
-   - Copy `backend/src/controllers/authController.js` into your controllers folder.
-   - Copy `backend/src/middleware/authMiddleware.js` into your middleware folder.
-   - Copy `backend/src/routes/authRoutes.js` into your routes folder.
-   - Copy `backend/src/utils/generateToken.js` into your utils folder.
-   - In your `server.js`: mount routes using `app.use('/api/auth', authRoutes);`.
-2. **Frontend:**
-   - Copy `frontend/src/api/axios.js` into your frontend `src/api` folder.
-   - Copy `frontend/src/context/AuthContext.jsx` into your frontend `src/context` folder.
-   - Copy `frontend/src/components/InputField.jsx`, `Button.jsx`, and `Alert.jsx` into your `src/components` folder.
-   - Copy `frontend/src/pages/Login.jsx` and `Register.jsx` into your `src/pages` folder.
-   - Wrap your app in `<AuthProvider>` and route to `<Login />` and `<Register />`.
+## 🛡️ Security Best Practices
+- Passwords are encrypted with `bcryptjs` (salt rounds: 10).
+- OTPs are cryptographically hashed using SHA-256 before persistence.
+- Raw OTPs and passwords are removed from JSON serialization (`select: false`).
+- Resend operations enforce a strict 30-second cooldown window.
+- All secrets and keys are strictly restricted to backend environment variables.
