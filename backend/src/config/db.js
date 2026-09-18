@@ -2,25 +2,24 @@ import mongoose from 'mongoose';
 
 /**
  * Connect to MongoDB database
- * Note: Per project requirements, this is not automatically invoked on startup.
- * To enable MongoDB connection in your project, call connectDB() in src/server.js
- * and provide your valid MONGO_URI in .env
+ * Uses MONGODB_URI or MONGO_URI from environment variables.
  */
 export const connectDB = async () => {
   try {
-    const mongoUri = process.env.MONGO_URI;
+    const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
 
     if (!mongoUri) {
-      console.warn('⚠️ MONGO_URI not defined in environment variables. Database not connected.');
+      console.error('MongoDB connection failed: Neither MONGODB_URI nor MONGO_URI is defined.');
       return null;
     }
 
     const conn = await mongoose.connect(mongoUri);
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    console.log('MongoDB connected successfully');
     return conn;
   } catch (error) {
-    console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    process.exit(1);
+    console.error('MongoDB connection failed');
+    // Note: Do not exit process in tests or server startup to allow graceful recovery/logging
+    throw error;
   }
 };
 
